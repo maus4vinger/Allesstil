@@ -1,0 +1,16 @@
+package nl.mauskarel.allesstil;
+import android.app.*; import android.content.*; import android.graphics.*; import android.graphics.drawable.*; import android.media.*; import android.os.*; import android.provider.*; import android.view.*; import android.widget.*;
+public class MainActivity extends Activity {
+ AudioManager audio; NotificationManager notifications; SharedPreferences prefs; Button toggle; TextView subtitle;
+ int[] streams={AudioManager.STREAM_MUSIC,AudioManager.STREAM_RING,AudioManager.STREAM_NOTIFICATION,AudioManager.STREAM_ALARM,AudioManager.STREAM_SYSTEM};
+ public void onCreate(Bundle b){super.onCreate(b);audio=(AudioManager)getSystemService(AUDIO_SERVICE);notifications=(NotificationManager)getSystemService(NOTIFICATION_SERVICE);prefs=getSharedPreferences("snapshot",MODE_PRIVATE);
+ LinearLayout root=new LinearLayout(this);root.setOrientation(1);root.setGravity(Gravity.CENTER);root.setPadding(32,32,32,32);root.setBackgroundColor(0xFF13181D);
+ TextView title=new TextView(this);title.setText("ALLES STIL");title.setTextColor(-1);title.setTextSize(29);title.setGravity(Gravity.CENTER);root.addView(title);
+ subtitle=new TextView(this);subtitle.setTextColor(0xFFB5C3C0);subtitle.setTextSize(17);subtitle.setGravity(Gravity.CENTER);subtitle.setPadding(0,28,0,28);root.addView(subtitle);
+ toggle=new Button(this);toggle.setAllCaps(false);toggle.setTextSize(24);LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(250,250);root.addView(toggle,p);toggle.setOnClickListener(v->change());
+ setContentView(root);refresh();}
+ void refresh(){boolean on=prefs.getBoolean("active",false);toggle.setText(on?"GELUID AAN":"ALLES STIL");subtitle.setText(on?"Tik om te herstellen":"Tik om stil te zetten");GradientDrawable bg=new GradientDrawable();bg.setShape(GradientDrawable.OVAL);bg.setColor(on?0xFFFFB85C:0xFF60F2A0);toggle.setBackground(bg);}
+ void change(){if(!notifications.isNotificationPolicyAccessGranted()){startActivity(new Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS));return;}toggle.setEnabled(false);try{if(prefs.getBoolean("active",false))restore();else silence();}catch(Exception e){Toast.makeText(this,"Niet alle instellingen aangepast",Toast.LENGTH_LONG).show();}finally{toggle.setEnabled(true);refresh();}}
+ void silence(){SharedPreferences.Editor ed=prefs.edit();ed.putInt("filter",notifications.getCurrentInterruptionFilter());ed.putInt("ringer",audio.getRingerMode());for(int s:streams)ed.putInt("volume_"+s,audio.getStreamVolume(s));ed.putBoolean("active",true);if(!ed.commit())throw new IllegalStateException();notifications.setInterruptionFilter(NotificationManager.INTERRUPTION_FILTER_NONE);for(int s:streams){try{audio.setStreamVolume(s,0,0);}catch(Exception ignored){}}}
+ void restore(){notifications.setInterruptionFilter(prefs.getInt("filter",NotificationManager.INTERRUPTION_FILTER_ALL));try{audio.setRingerMode(prefs.getInt("ringer",AudioManager.RINGER_MODE_NORMAL));}catch(Exception ignored){}for(int s:streams){try{audio.setStreamVolume(s,prefs.getInt("volume_"+s,0),0);}catch(Exception ignored){}}prefs.edit().putBoolean("active",false).commit();}
+}
